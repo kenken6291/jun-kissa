@@ -1,0 +1,643 @@
+/* =========================================================
+   純喫茶巡りログ - style.css
+   テーマ：深い木目 × クリーム × モスグリーン × 琥珀
+   モバイルファーストで記述し、PCはメディアクエリで拡張
+   ========================================================= */
+
+/* ---------- カラーパレット・共通変数 ---------- */
+:root {
+  --wood-dark:  #2e2015;   /* 濃い木目（ヘッダー・文字） */
+  --wood:       #4a3424;   /* 木目（枠・ボタン） */
+  --cream:      #f6eedb;   /* クリームソーダのバニラ色（背景） */
+  --cream-deep: #efe2c5;   /* 少し濃いクリーム（カード） */
+  --moss:       #5c6b4c;   /* モスグリーン（ソファの色） */
+  --amber:      #c08428;   /* 琥珀色（メインボタン） */
+  --amber-deep: #9a6a1e;
+  --cherry:     #a8402e;   /* クリームソーダのさくらんぼ色（アクセント） */
+  --ink:        #3a2d22;   /* 本文の文字色 */
+
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+  --font-body:    "Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif;
+
+  --radius: 10px;
+  --shadow: 0 3px 10px rgba(46, 32, 21, 0.25);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background-color: var(--cream);
+  /* 方眼ノートのような淡い格子模様で、紙の雰囲気を出す */
+  background-image:
+    linear-gradient(rgba(74, 52, 36, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 52, 36, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================================================
+   ヘッダー：木目調の喫茶店看板風
+   ========================================================= */
+.site-header {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)),
+    repeating-linear-gradient(
+      95deg,
+      var(--wood-dark) 0px,
+      #3a2a1b 60px,
+      var(--wood-dark) 130px
+    );
+  color: var(--cream);
+  padding: 14px 16px 12px;
+  border-bottom: 4px double var(--amber);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.site-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.45rem;
+  letter-spacing: 0.18em;
+  margin: 0;
+}
+
+.title-deco {
+  color: var(--amber);
+  font-size: 0.9em;
+  letter-spacing: 0;
+}
+
+.site-subtitle {
+  margin: 4px 0 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  color: #d8c9a8;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* =========================================================
+   ボタン類：レトロモダンな質感
+   ========================================================= */
+.btn {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--wood);
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: transform 0.08s ease, filter 0.15s ease;
+  background: var(--cream-deep);
+  color: var(--ink);
+}
+
+.btn:hover  { filter: brightness(1.05); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible {
+  outline: 3px solid var(--cherry);
+  outline-offset: 2px;
+}
+
+.btn-amber {
+  background: linear-gradient(180deg, #d49a3c, var(--amber));
+  border-color: var(--amber-deep);
+  color: #fff8e8;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+
+.btn-moss {
+  background: linear-gradient(180deg, #6a7a59, var(--moss));
+  border-color: #46523a;
+  color: #f2f0e4;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: currentColor;
+  color: inherit;
+}
+
+.btn-block { width: 100%; }
+.btn-small { font-size: 0.75rem; padding: 4px 10px; }
+
+/* =========================================================
+   メインレイアウト（モバイル：縦並び）
+   ========================================================= */
+.app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* 子のスクロールを有効にする */
+}
+
+/* ---------- 地図 ---------- */
+#map {
+  height: 52vh;          /* スマホでは画面上半分が地図 */
+  min-height: 300px;
+  border-bottom: 4px solid var(--wood);
+  z-index: 0;
+}
+
+/* 地図タイルにほんのりセピアをかけてレトロな色合いに（このアプリの隠し味） */
+.leaflet-tile-pane {
+  filter: sepia(0.32) saturate(0.85) brightness(1.02);
+}
+
+/* ---------- サイドバー（スマホでは地図の下） ---------- */
+.sidebar {
+  order: 2;              /* スマホ：地図の後に表示 */
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+#map { order: 1; }
+
+.panel {
+  background: var(--cream-deep);
+  border: 2px solid var(--wood);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px dashed var(--wood);
+  color: var(--wood-dark);
+}
+
+.log-count {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--moss);
+}
+
+/* ---------- 検索ボックス ---------- */
+.search-row {
+  display: flex;
+  gap: 8px;
+}
+
+.search-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+input[type="search"],
+input[type="text"],
+input[type="date"],
+textarea {
+  font-family: var(--font-body);
+  font-size: 16px; /* iOSの自動ズーム防止 */
+  padding: 9px 10px;
+  border: 2px solid var(--wood);
+  border-radius: 8px;
+  background: #fffdf5;
+  color: var(--ink);
+  width: 100%;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 1px;
+}
+
+.search-results {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 2px solid var(--wood);
+  border-radius: 8px;
+  background: #fffdf5;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.search-results li {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  border-bottom: 1px dashed rgba(74, 52, 36, 0.35);
+  cursor: pointer;
+}
+
+.search-results li:last-child { border-bottom: none; }
+.search-results li:hover { background: var(--cream); }
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--moss);
+  margin: 10px 0;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   ログ一覧：昔の喫茶店の「お会計伝票」風カード
+   ========================================================= */
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.log-card {
+  background: #fffdf5;
+  border: 1.5px solid var(--wood);
+  border-radius: 6px;
+  padding: 10px 12px 10px 16px;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  /* 伝票の左端のミシン目風 */
+  border-left: 6px double var(--cherry);
+}
+
+.log-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.log-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.log-card-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--wood-dark);
+}
+
+.log-card-date {
+  font-size: 0.72rem;
+  color: var(--moss);
+  white-space: nowrap;
+}
+
+.log-card-menus {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.menu-tag {
+  font-size: 0.7rem;
+  background: var(--moss);
+  color: #f2f0e4;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.log-card-thumb {
+  margin-top: 8px;
+  width: 100%;
+  max-height: 110px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1.5px solid var(--cream-deep);
+}
+
+.empty-note {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--moss);
+  line-height: 1.9;
+  padding: 18px 0;
+  margin: 0;
+}
+
+/* =========================================================
+   地図のマーカーとポップアップ
+   ========================================================= */
+/* コーヒーカップ型のオリジナルピン */
+.kissa-pin {
+  background: transparent;
+  border: none;
+}
+
+.kissa-pin .pin-body {
+  width: 38px;
+  height: 38px;
+  background: radial-gradient(circle at 32% 28%, #d49a3c, var(--amber-deep));
+  border: 2.5px solid var(--wood-dark);
+  border-radius: 50% 50% 50% 6px;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+.kissa-pin .pin-body span {
+  transform: rotate(45deg);
+  font-size: 18px;
+}
+
+/* ポップアップ（クリーム色の紙風に上書き） */
+.leaflet-popup-content-wrapper {
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--wood);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+}
+
+.leaflet-popup-tip { background: var(--wood); }
+
+.popup-card { width: 220px; }
+
+.popup-name {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 700;
+  margin: 0 0 2px;
+  color: var(--wood-dark);
+}
+
+.popup-date {
+  font-size: 0.72rem;
+  color: var(--moss);
+  margin: 0 0 6px;
+}
+
+.popup-photo {
+  width: 100%;
+  border-radius: 6px;
+  border: 1.5px solid var(--wood);
+  margin: 6px 0;
+}
+
+.popup-memo {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  margin: 6px 0;
+  white-space: pre-wrap;
+}
+
+.popup-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.popup-actions .btn { flex: 1; }
+
+.btn-danger {
+  border-color: var(--cherry);
+  color: var(--cherry);
+  background: transparent;
+}
+
+/* =========================================================
+   記録フォーム（モーダル）：来店記録票デザイン
+   ========================================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(46, 32, 21, 0.55);
+  display: flex;
+  align-items: flex-end;       /* スマホ：下からシート風に */
+  justify-content: center;
+  z-index: 1000;
+  padding: 0;
+}
+
+.modal {
+  background: var(--cream);
+  width: 100%;
+  max-width: 480px;
+  max-height: 92vh;
+  overflow-y: auto;
+  border: 3px solid var(--wood);
+  border-radius: 16px 16px 0 0;
+  padding: 0 18px 18px;
+  position: relative;
+}
+
+/* チケットの切り取り線風の上端 */
+.modal-ticket-edge {
+  height: 14px;
+  margin: 0 -18px 10px;
+  border-bottom: 3px dashed var(--wood);
+  background:
+    radial-gradient(circle at 10px 0, transparent 7px, var(--amber) 7px) repeat-x;
+  background-size: 22px 14px;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  text-align: center;
+  letter-spacing: 0.3em;
+  font-size: 1.15rem;
+  color: var(--wood-dark);
+  margin: 4px 0 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--wood-dark);
+}
+
+.form-label input,
+.form-label textarea {
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+.required {
+  color: var(--cherry);
+  font-size: 0.7rem;
+}
+
+.menu-fieldset {
+  border: 2px dashed var(--wood);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.menu-fieldset legend {
+  padding: 0 6px;
+  font-size: 0.82rem;
+}
+
+.menu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* メニュー選択チップ（チェックボックスを隠してボタン風に） */
+.menu-chip input { display: none; }
+
+.menu-chip span {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--moss);
+  color: var(--moss);
+  font-size: 0.78rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.menu-chip input:checked + span {
+  background: var(--moss);
+  color: #f2f0e4;
+}
+
+.photo-preview {
+  margin: -4px 0 12px;
+  text-align: center;
+}
+
+.photo-preview img {
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 8px;
+  border: 2px solid var(--wood);
+  display: block;
+  margin: 0 auto 6px;
+}
+
+.coords-note {
+  font-size: 0.72rem;
+  color: var(--moss);
+  text-align: center;
+  margin: 4px 0 12px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-actions .btn { flex: 1; }
+
+/* =========================================================
+   FAB（スマホで片手操作しやすい右下の追加ボタン）
+   ========================================================= */
+.fab {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 900;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 13px 18px;
+  border-radius: 999px;
+  border: 2.5px solid var(--wood-dark);
+  background: linear-gradient(180deg, #c4573f, var(--cherry));
+  color: #fff6ea;
+  box-shadow: 0 4px 12px rgba(46, 32, 21, 0.45);
+  cursor: pointer;
+}
+
+.fab:active { transform: scale(0.97); }
+
+/* =========================================================
+   トースト通知
+   ========================================================= */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  background: var(--wood-dark);
+  color: var(--cream);
+  font-size: 0.85rem;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--amber);
+  z-index: 1100;
+  box-shadow: var(--shadow);
+  max-width: 90vw;
+  text-align: center;
+}
+
+/* =========================================================
+   PCレイアウト（768px以上）：サイドバー + 地図を左右に
+   ========================================================= */
+@media (min-width: 768px) {
+  .app {
+    flex-direction: row;
+  }
+
+  .sidebar {
+    order: 1;                /* PCでは左にサイドバー */
+    width: 360px;
+    flex-shrink: 0;
+    border-right: 4px solid var(--wood);
+    height: 100%;
+  }
+
+  #map {
+    order: 2;
+    flex: 1;
+    height: auto;            /* 残り全部を地図に */
+    border-bottom: none;
+  }
+
+  .site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    padding: 12px 24px;
+  }
+
+  .site-title { font-size: 1.6rem; }
+  .header-actions { justify-content: flex-end; }
+
+  .fab { display: none; }    /* PCでは地図クリック・検索が主導線 */
+
+  .modal-overlay {
+    align-items: center;     /* PCでは中央にモーダル */
+    padding: 24px;
+  }
+
+  .modal {
+    border-radius: 16px;
+  }
+}
+
+/* アニメーションを減らす設定の人向け */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

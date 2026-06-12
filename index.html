@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>懐かしの喫茶店・純喫茶巡りログ</title>
+  <meta name="description" content="レトロな喫茶店の訪問記録を地図にピン留めして残す、自分だけの巡りログ。" />
+
+  <!-- ===== Leaflet.js（APIキー不要・無料の地図ライブラリ） ===== -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <!-- ===== レトロな雰囲気のWebフォント ===== -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- ===== アプリのスタイル ===== -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ================= ヘッダー（喫茶店の看板風） ================= -->
+  <header class="site-header">
+    <div class="header-inner">
+      <h1 class="site-title">
+        <span class="title-deco">☕</span>
+        純喫茶巡りログ
+        <span class="title-deco">☕</span>
+      </h1>
+      <p class="site-subtitle">— 懐かしの一杯と一皿を、地図に残す —</p>
+    </div>
+    <!-- データの書き出し/読み込み（ブラウザ保存のためバックアップ用） -->
+    <div class="header-actions">
+      <button id="btn-export" class="btn btn-ghost" title="記録をJSONファイルに書き出します">記録を書き出す</button>
+      <label class="btn btn-ghost" title="書き出したJSONファイルを読み込みます">
+        記録を読み込む
+        <input type="file" id="input-import" accept="application/json" hidden />
+      </label>
+    </div>
+  </header>
+
+  <!-- ================= メインレイアウト =================
+       PC : 左サイドバー（検索・一覧） + 右に大きな地図
+       スマホ : 上に地図、下に一覧（モバイルファースト） -->
+  <main class="app">
+
+    <!-- ---------- サイドバー ---------- -->
+    <aside class="sidebar">
+
+      <!-- 店名・住所検索（OpenStreetMapの無料ジオコーディング Nominatim を使用） -->
+      <section class="search-box panel">
+        <h2 class="panel-title">お店をさがす</h2>
+        <div class="search-row">
+          <input
+            type="search"
+            id="input-search"
+            placeholder="店名・住所・駅名など"
+            autocomplete="off"
+          />
+          <button id="btn-search" class="btn btn-amber">検索</button>
+        </div>
+        <ul id="search-results" class="search-results" hidden></ul>
+        <p class="hint">
+          地図を直接タップ（クリック）しても、その場所に記録を追加できます。
+        </p>
+        <button id="btn-locate" class="btn btn-moss btn-block">📍 現在地へ移動</button>
+      </section>
+
+      <!-- 訪問ログ一覧 -->
+      <section class="panel log-panel">
+        <h2 class="panel-title">巡りの記録 <span id="log-count" class="log-count"></span></h2>
+        <ul id="log-list" class="log-list"></ul>
+        <p id="log-empty" class="empty-note">
+          まだ記録がありません。<br />
+          地図をタップするか、お店を検索して<br />最初の一杯を記録しましょう。
+        </p>
+      </section>
+    </aside>
+
+    <!-- ---------- 地図 ---------- -->
+    <div id="map" aria-label="喫茶店マップ"></div>
+  </main>
+
+  <!-- スマホ用：記録追加の浮きボタン（FAB） -->
+  <button id="btn-fab" class="fab" title="地図の中心に記録を追加">＋ 記録する</button>
+
+  <!-- ================= 記録の追加・編集フォーム（モーダル） ================= -->
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-ticket-edge" aria-hidden="true"></div>
+      <h2 id="modal-title" class="modal-title">ご来店記録票</h2>
+
+      <form id="visit-form">
+        <!-- 緯度経度（地図クリック・検索結果から自動入力） -->
+        <input type="hidden" id="field-lat" />
+        <input type="hidden" id="field-lng" />
+        <input type="hidden" id="field-id" />
+
+        <label class="form-label">
+          店名 <span class="required">＊必須</span>
+          <input type="text" id="field-name" required maxlength="60" placeholder="例：純喫茶アメリカン" />
+        </label>
+
+        <label class="form-label">
+          訪問日
+          <input type="date" id="field-date" />
+        </label>
+
+        <!-- メニュー：定番をチップで選択 ＋ 自由入力 -->
+        <fieldset class="form-label menu-fieldset">
+          <legend>注文したメニュー</legend>
+          <div class="menu-chips" id="menu-chips">
+            <!-- JSで生成 -->
+          </div>
+          <input type="text" id="field-menu-free" maxlength="60" placeholder="その他（自由に入力）" />
+        </fieldset>
+
+        <label class="form-label">
+          写真
+          <input type="file" id="field-photo" accept="image/*" />
+        </label>
+        <div id="photo-preview" class="photo-preview" hidden>
+          <img id="photo-preview-img" alt="写真プレビュー" />
+          <button type="button" id="btn-photo-remove" class="btn btn-ghost btn-small">写真を削除</button>
+        </div>
+
+        <label class="form-label">
+          一言メモ
+          <textarea id="field-memo" rows="3" maxlength="300" placeholder="クリームソーダのメロン色が最高だった…など"></textarea>
+        </label>
+
+        <p class="coords-note" id="coords-note"></p>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel" class="btn btn-ghost">やめる</button>
+          <button type="submit" class="btn btn-amber">この記録を保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 削除確認などのトースト表示 -->
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- ===== アプリのロジック ===== -->
+  <script src="script.js"></script>
+</body>
+</html>
