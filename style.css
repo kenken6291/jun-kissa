@@ -210,6 +210,7 @@ body {
 input[type="search"],
 input[type="text"],
 input[type="date"],
+input[type="url"],
 textarea {
   font-family: var(--font-body);
   font-size: 16px; /* iOSの自動ズーム防止 */
@@ -225,6 +226,16 @@ input:focus-visible,
 textarea:focus-visible {
   outline: 3px solid var(--amber);
   outline-offset: 1px;
+}
+
+/* フォームのサブテキスト（URLの説明など） */
+.field-hint {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--moss);
+  margin-top: 3px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
 .search-results {
@@ -328,6 +339,43 @@ textarea:focus-visible {
   border: 1.5px solid var(--cream-deep);
 }
 
+/* カード下部：URLリンクと修正/削除ボタンを左右に配置 */
+.log-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(74, 52, 36, 0.28);
+}
+
+/* ホームページリンク（カード内） */
+.log-card-url-link {
+  font-size: 0.72rem;
+  color: var(--moss);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--moss);
+  padding-bottom: 1px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+.log-card-url-link:hover {
+  color: var(--amber-deep);
+  border-bottom-color: var(--amber-deep);
+}
+
+/* 修正・削除ボタン行 */
+.log-card-btns {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .empty-note {
   text-align: center;
   font-size: 0.85rem;
@@ -405,6 +453,27 @@ textarea:focus-visible {
   white-space: pre-wrap;
 }
 
+/* ホームページリンク（ポップアップ内） */
+.popup-url-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 8px 0 2px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: linear-gradient(180deg, #6a7a59, var(--moss));
+  color: #f2f0e4;
+  border-radius: 8px;
+  border: 1.5px solid #46523a;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: filter 0.12s ease;
+}
+
+.popup-url-link:hover { filter: brightness(1.12); }
+
 .popup-actions {
   display: flex;
   gap: 6px;
@@ -419,6 +488,14 @@ textarea:focus-visible {
   background: transparent;
 }
 
+/* ===== フリーズ対策：モーダルオープン中はマップへの入力を完全遮断 =====
+   body.modal-open クラスが付いている間、.app（地図＋サイドバー）全体の
+   pointer-events を none にして、Leafletにタッチが届かないようにする。 */
+body.modal-open .app {
+  pointer-events: none;
+  touch-action: none;
+}
+
 /* =========================================================
    記録フォーム（モーダル）：来店記録票デザイン
    ========================================================= */
@@ -431,6 +508,8 @@ textarea:focus-visible {
   justify-content: center;
   z-index: 1000;
   padding: 0;
+  /* タッチをオーバーレイ自身が吸収してマップに届かせない */
+  touch-action: none;
 }
 
 .modal {
@@ -443,6 +522,16 @@ textarea:focus-visible {
   border-radius: 16px 16px 0 0;
   padding: 0 18px 18px;
   position: relative;
+  /* ===== フリーズ対策 =====
+     overscroll-behavior: contain → モーダル内のスクロールが底に達しても
+     背後の地図にスクロールが「漏れる」のを防ぐ（Androidで特に重要）。
+     -webkit-overflow-scrolling: touch → iOSでの慣性スクロールを有効化。
+     touch-action: pan-y → 縦スクロールのみを宣言し、他のジェスチャを抑制。
+     will-change: transform → GPUの合成レイヤーに昇格させてジャンクを防止。 */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  will-change: transform;
 }
 
 /* チケットの切り取り線風の上端 */

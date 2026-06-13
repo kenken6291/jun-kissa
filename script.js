@@ -136,17 +136,29 @@ function escapeHTML(str) {
     .replaceAll("'", "&#39;");
 }
 
+// URLをhref属性に使える安全な文字列に変換。
+// http / https 以外（javascript: など）は空文字を返して無害化する。
+function sanitizeURL(url) {
+  if (!url) return "";
+  try {
+    const u = new URL(url.trim());
+    if (u.protocol === "http:" || u.protocol === "https:") return u.href;
+  } catch (_) {}
+  return "";
+}
+
 function formatDate(iso) {
   if (!iso) return "日付未記入";
   const [y, m, d] = iso.split("-");
   return `${y}年${Number(m)}月${Number(d)}日`;
 }
 
-// ポップアップの中身（店名・日付・メニュー・写真・メモ）を組み立てる
+// ポップアップの中身（店名・日付・メニュー・写真・メモ・URL）を組み立てる
 function buildPopupHTML(v) {
   const menus = (v.menus || [])
     .map((m) => `<span class="menu-tag">${escapeHTML(m)}</span>`)
     .join(" ");
+  const safeURL = sanitizeURL(v.url);
   return `
     <div class="popup-card">
       <p class="popup-name">${escapeHTML(v.name)}</p>
@@ -154,9 +166,10 @@ function buildPopupHTML(v) {
       ${menus ? `<div class="log-card-menus">${menus}</div>` : ""}
       ${v.photo ? `<img class="popup-photo" src="${v.photo}" alt="${escapeHTML(v.name)}の写真">` : ""}
       ${v.memo ? `<p class="popup-memo">${escapeHTML(v.memo)}</p>` : ""}
+      ${safeURL ? `<a class="popup-url-link" href="${safeURL}" target="_blank" rel="noopener noreferrer">🌐 ホームページを見る</a>` : ""}
       <div class="popup-actions">
-        <button class="btn btn-small btn-ghost" data-action="edit" data-id="${v.id}">直す</button>
-        <button class="btn btn-small btn-danger" data-action="delete" data-id="${v.id}">消す</button>
+        <button class="btn btn-small btn-ghost" data-action="edit" data-id="${v.id}">✏ 修正</button>
+        <button class="btn btn-small btn-danger" data-action="delete" data-id="${v.id}">🗑 削除</button>
       </div>
     </div>`;
 }
@@ -191,6 +204,8 @@ function renderList() {
   sorted.forEach((v) => {
     const li = document.createElement("li");
     li.className = "log-card";
+    const safeURL = sanitizeURL(v.url);
+
     li.innerHTML = `
       <div class="log-card-head">
         <span class="log-card-name">${escapeHTML(v.name)}</span>
@@ -203,10 +218,23 @@ function renderList() {
               .join("")}</div>`
           : ""
       }
-      ${v.photo ? `<img class="log-card-thumb" src="${v.photo}" alt="">` : ""}
+      ${v.photo ? `<img class="log-card-thumb" src="${v.photo}" alt="" loading="lazy">` : ""}
+      <div class="log-card-footer">
+        ${safeURL
+          ? `<a class="log-card-url-link" href="${safeURL}" target="_blank" rel="noopener noreferrer">🌐 ホームページ</a>`
+          : `<span></span>`
+        }
+        <div class="log-card-btns">
+          <button class="btn btn-small btn-ghost" data-action="edit" data-id="${v.id}">✏ 修正</button>
+          <button class="btn btn-small btn-danger" data-action="delete" data-id="${v.id}">🗑 削除</button>
+        </div>
+      </div>
     `;
+
     // カードをタップ → 地図のピンへ移動してポップアップを開く
-    li.addEventListener("click", () => {
+    // ただしボタンやリンクをタップした場合はナビゲーションしない
+    li.addEventListener("click", (e) => {
+      if (e.target.closest("[data-action], a")) return;
       map.setView([v.lat, v.lng], Math.max(map.getZoom(), 15));
       markers[v.id]?.openPopup();
       // スマホでは地図が画面上部にあるためスクロールで見せる
@@ -255,8 +283,12 @@ function openForm({ lat, lng, visit = null }) {
   document.getElementById("field-lng").value = visit?.lng ?? lng;
   document.getElementById("field-name").value = visit?.name || "";
   document.getElementById("field-memo").value = visit?.memo || "";
-  document.getElementById("field-date").value =
-    visit?.date || new Date().toISOString().slice(0, 10);
+  document.getElementById("field-url").value = visit?.url || "";
+  // date フィールドは form.reset() 後に設定（Androidで日付ピッカーが誤動作するのを防ぐ）
+  setTimeout(() => {
+    document.getElementById("field-date").value =
+      visit?.date || new Date().toISOString().slice(0, 10);
+  }, 0);
 
   // メニューチップ：定番は選択を復元、それ以外は自由入力欄へ
   const presetSelected = new Set(
@@ -284,13 +316,40 @@ function openForm({ lat, lng, visit = null }) {
     ? "記録票を直す"
     : "ご来店記録票";
   overlay.hidden = false;
-  document.getElementById("field-name").focus();
+
+  // ===== フリーズ対策（3つまとめて適用） =====
+  // 【対策1】Leafletのタッチハンドラを全て止める。
+  //   これをしないとモーダル背後の地図がタッチイベントを横取りし、
+  //   フォームのタップが効かなくなる（Android Chromeで多発）。
+  map.dragging.disable();
+  map.touchZoom.disable();
+  map.scrollWheelZoom.disable();
+  map.doubleClickZoom.disable();
+  if (map.tap) map.tap.disable(); // Leaflet独自のタップ検出を停止
+
+  // 【対策2】body に modal-open クラスを付与してCSSでマップ領域の
+  //   pointer-events を none に切る（二重の安全策）。
+  document.body.classList.add("modal-open");
+
+  // 【対策3】focus() を遅延させる。
+  //   即座に呼ぶとバーチャルキーボードがモーダル描画と競合して
+  //   ビューポートが暴れ → Leafletが再描画ループ → フリーズ。
+  //   300ms 後にモーダルが描画完了してから呼ぶ。
+  setTimeout(() => document.getElementById("field-name").focus(), 300);
 }
 
 function closeForm() {
   overlay.hidden = true;
   removeTempMarker();
   pendingPhoto = null;
+
+  // Leafletのタッチハンドラを再有効化
+  map.dragging.enable();
+  map.touchZoom.enable();
+  map.scrollWheelZoom.enable();
+  map.doubleClickZoom.enable();
+  if (map.tap) map.tap.enable();
+  document.body.classList.remove("modal-open");
 }
 
 function removeTempMarker() {
@@ -333,6 +392,8 @@ form.addEventListener("submit", async (e) => {
     date: document.getElementById("field-date").value,
     menus,
     memo: document.getElementById("field-memo").value.trim(),
+    // URLはサニタイズして保存（空文字ならプロパティごと省略）
+    url: sanitizeURL(document.getElementById("field-url").value) || "",
     photo: pendingPhoto,
     lat: Number(document.getElementById("field-lat").value),
     lng: Number(document.getElementById("field-lng").value),
