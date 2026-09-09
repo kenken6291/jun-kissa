@@ -4,23 +4,20 @@
    モバイルファーストで記述し、PCはメディアクエリで拡張
    ========================================================= */
 
-/* ---------- hidden属性の保護（CSSリセットより先に宣言） ----------
-   HTMLの hidden 属性は UA スタイルシートで display:none を付与するが、
-   著者スタイルシートの display:flex / display:block 等に負けてしまう。
-   !important で明示することで「hidden = 必ず非表示」を保証する。 */
+/* ---------- hidden属性の保護（CSSリセットより先に宣言） ---------- */
 [hidden] { display: none !important; }
 
 /* ---------- カラーパレット・共通変数 ---------- */
 :root {
-  --wood-dark:  #2e2015;   /* 濃い木目（ヘッダー・文字） */
-  --wood:       #4a3424;   /* 木目（枠・ボタン） */
-  --cream:      #f6eedb;   /* クリームソーダのバニラ色（背景） */
-  --cream-deep: #efe2c5;   /* 少し濃いクリーム（カード） */
-  --moss:       #5c6b4c;   /* モスグリーン（ソファの色） */
-  --amber:      #c08428;   /* 琥珀色（メインボタン） */
+  --wood-dark:  #2e2015;
+  --wood:       #4a3424;
+  --cream:      #f6eedb;
+  --cream-deep: #efe2c5;
+  --moss:       #5c6b4c;
+  --amber:      #c08428;
   --amber-deep: #9a6a1e;
-  --cherry:     #a8402e;   /* クリームソーダのさくらんぼ色（アクセント） */
-  --ink:        #3a2d22;   /* 本文の文字色 */
+  --cherry:     #a8402e;
+  --ink:        #3a2d22;
 
   --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
   --font-body:    "Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif;
@@ -41,7 +38,6 @@ body {
   font-family: var(--font-body);
   color: var(--ink);
   background-color: var(--cream);
-  /* 方眼ノートのような淡い格子模様で、紙の雰囲気を出す */
   background-image:
     linear-gradient(rgba(74, 52, 36, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(74, 52, 36, 0.05) 1px, transparent 1px);
@@ -49,6 +45,107 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+#app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* =========================================================
+   会員認証画面（ログイン／登録／再発行など）
+   ========================================================= */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 14px;
+  overflow-y: auto;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)),
+    repeating-linear-gradient(95deg, var(--wood-dark) 0px, #3a2a1b 60px, var(--wood-dark) 130px);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--cream);
+  border: 3px solid var(--wood);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 20px;
+}
+
+.auth-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: 0.14em;
+  text-align: center;
+  color: var(--wood-dark);
+  margin: 0;
+}
+
+.auth-subtitle {
+  text-align: center;
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  color: var(--moss);
+  margin: 4px 0 18px;
+}
+
+.auth-panel-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  color: var(--wood-dark);
+  margin: 0 0 14px;
+  padding-bottom: 6px;
+  border-bottom: 2px dashed var(--wood);
+}
+
+.auth-error {
+  background: #fbe4de;
+  border: 1.5px solid var(--cherry);
+  color: var(--cherry);
+  font-size: 0.8rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 0 0 12px;
+}
+
+.auth-message {
+  font-size: 0.88rem;
+  line-height: 1.8;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  text-align: center;
+}
+
+.auth-links a {
+  font-size: 0.8rem;
+  color: var(--moss);
+  text-decoration: underline;
+}
+
+.password-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.password-row input { margin-top: 0; flex: 1; }
+.password-row .btn { flex-shrink: 0; white-space: nowrap; }
 
 /* =========================================================
    ヘッダー：木目調の喫茶店看板風
@@ -92,9 +189,15 @@ body {
 
 .header-actions {
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.header-nickname {
+  font-size: 0.8rem;
+  color: #f0e6cd;
 }
 
 /* =========================================================
@@ -120,6 +223,11 @@ body {
   outline: 3px solid var(--cherry);
   outline-offset: 2px;
 }
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
 
 .btn-amber {
   background: linear-gradient(180deg, #d49a3c, var(--amber));
@@ -140,7 +248,15 @@ body {
   color: inherit;
 }
 
-.btn-block { width: 100%; }
+.btn-ai {
+  border-style: dashed;
+  color: var(--amber-deep);
+  margin: -6px 0 14px;
+}
+
+.btn-danger-text { color: var(--cherry); }
+
+.btn-block { width: 100%; margin-bottom: 10px; }
 .btn-small { font-size: 0.75rem; padding: 4px 10px; }
 
 /* =========================================================
@@ -150,25 +266,22 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* 子のスクロールを有効にする */
+  min-height: 0;
 }
 
-/* ---------- 地図 ---------- */
 #map {
-  height: 52vh;          /* スマホでは画面上半分が地図 */
+  height: 52vh;
   min-height: 300px;
   border-bottom: 4px solid var(--wood);
   z-index: 0;
 }
 
-/* 地図タイルにほんのりセピアをかけてレトロな色合いに（このアプリの隠し味） */
 .leaflet-tile-pane {
   filter: sepia(0.32) saturate(0.85) brightness(1.02);
 }
 
-/* ---------- サイドバー（スマホでは地図の下） ---------- */
 .sidebar {
-  order: 2;              /* スマホ：地図の後に表示 */
+  order: 2;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -215,6 +328,8 @@ body {
 
 input[type="search"],
 input[type="text"],
+input[type="email"],
+input[type="password"],
 input[type="date"],
 input[type="url"],
 textarea {
@@ -234,7 +349,6 @@ textarea:focus-visible {
   outline-offset: 1px;
 }
 
-/* フォームのサブテキスト（URLの説明など） */
 .field-hint {
   display: block;
   font-size: 0.7rem;
@@ -292,7 +406,6 @@ textarea:focus-visible {
   position: relative;
   cursor: pointer;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
-  /* 伝票の左端のミシン目風 */
   border-left: 6px double var(--cherry);
 }
 
@@ -345,7 +458,6 @@ textarea:focus-visible {
   border: 1.5px solid var(--cream-deep);
 }
 
-/* カード下部：URLリンクと修正/削除ボタンを左右に配置 */
 .log-card-footer {
   display: flex;
   align-items: center;
@@ -356,7 +468,6 @@ textarea:focus-visible {
   border-top: 1px dashed rgba(74, 52, 36, 0.28);
 }
 
-/* ホームページリンク（カード内） */
 .log-card-url-link {
   font-size: 0.72rem;
   color: var(--moss);
@@ -375,7 +486,6 @@ textarea:focus-visible {
   border-bottom-color: var(--amber-deep);
 }
 
-/* 修正・削除ボタン行 */
 .log-card-btns {
   display: flex;
   gap: 4px;
@@ -394,7 +504,6 @@ textarea:focus-visible {
 /* =========================================================
    地図のマーカーとポップアップ
    ========================================================= */
-/* コーヒーカップ型のオリジナルピン */
 .kissa-pin {
   background: transparent;
   border: none;
@@ -418,7 +527,6 @@ textarea:focus-visible {
   font-size: 18px;
 }
 
-/* ポップアップ（クリーム色の紙風に上書き） */
 .leaflet-popup-content-wrapper {
   background: var(--cream);
   color: var(--ink);
@@ -459,7 +567,6 @@ textarea:focus-visible {
   white-space: pre-wrap;
 }
 
-/* ホームページリンク（ポップアップ内） */
 .popup-url-link {
   display: flex;
   align-items: center;
@@ -494,27 +601,24 @@ textarea:focus-visible {
   background: transparent;
 }
 
-/* ===== フリーズ対策：モーダルオープン中はマップへの入力を完全遮断 =====
-   body.modal-open クラスが付いている間、.app（地図＋サイドバー）全体の
-   pointer-events を none にして、Leafletにタッチが届かないようにする。 */
+/* ===== フリーズ対策：モーダルオープン中はマップへの入力を完全遮断 ===== */
 body.modal-open .app {
   pointer-events: none;
   touch-action: none;
 }
 
 /* =========================================================
-   記録フォーム（モーダル）：来店記録票デザイン
+   記録フォーム／設定パネル（モーダル）共通：来店記録票デザイン
    ========================================================= */
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(46, 32, 21, 0.55);
   display: flex;
-  align-items: flex-end;       /* スマホ：下からシート風に */
+  align-items: flex-end;
   justify-content: center;
   z-index: 1000;
   padding: 0;
-  /* タッチをオーバーレイ自身が吸収してマップに届かせない */
   touch-action: none;
 }
 
@@ -528,19 +632,12 @@ body.modal-open .app {
   border-radius: 16px 16px 0 0;
   padding: 0 18px 18px;
   position: relative;
-  /* ===== フリーズ対策 =====
-     overscroll-behavior: contain → モーダル内のスクロールが底に達しても
-     背後の地図にスクロールが「漏れる」のを防ぐ（Androidで特に重要）。
-     -webkit-overflow-scrolling: touch → iOSでの慣性スクロールを有効化。
-     touch-action: pan-y → 縦スクロールのみを宣言し、他のジェスチャを抑制。
-     will-change: transform → GPUの合成レイヤーに昇格させてジャンクを防止。 */
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   will-change: transform;
 }
 
-/* チケットの切り取り線風の上端 */
 .modal-ticket-edge {
   height: 14px;
   margin: 0 -18px 10px;
@@ -596,7 +693,6 @@ body.modal-open .app {
   margin-bottom: 8px;
 }
 
-/* メニュー選択チップ（チェックボックスを隠してボタン風に） */
 .menu-chip input { display: none; }
 
 .menu-chip span {
@@ -643,6 +739,12 @@ body.modal-open .app {
 }
 
 .modal-actions .btn { flex: 1; }
+
+.settings-divider {
+  border: none;
+  border-top: 2px dashed var(--wood);
+  margin: 16px 0;
+}
 
 /* =========================================================
    FAB（スマホで片手操作しやすい右下の追加ボタン）
@@ -695,7 +797,7 @@ body.modal-open .app {
   }
 
   .sidebar {
-    order: 1;                /* PCでは左にサイドバー */
+    order: 1;
     width: 360px;
     flex-shrink: 0;
     border-right: 4px solid var(--wood);
@@ -705,7 +807,7 @@ body.modal-open .app {
   #map {
     order: 2;
     flex: 1;
-    height: auto;            /* 残り全部を地図に */
+    height: auto;
     border-bottom: none;
   }
 
@@ -720,10 +822,10 @@ body.modal-open .app {
   .site-title { font-size: 1.6rem; }
   .header-actions { justify-content: flex-end; }
 
-  .fab { display: none; }    /* PCでは地図クリック・検索が主導線 */
+  .fab { display: none; }
 
   .modal-overlay {
-    align-items: center;     /* PCでは中央にモーダル */
+    align-items: center;
     padding: 24px;
   }
 

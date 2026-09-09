@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>懐かしの喫茶店・純喫茶巡りログ</title>
-  <meta name="description" content="レトロな喫茶店の訪問記録を地図にピン留めして残す、自分だけの巡りログ。" />
+  <meta name="description" content="レトロな喫茶店の訪問記録を地図にピン留めして残す、会員登録制の巡りログ。複数の端末から同じ記録を見られます。" />
 
   <!-- ===== Leaflet.js（APIキー不要・無料の地図ライブラリ） ===== -->
   <link
@@ -32,135 +32,279 @@
 </head>
 <body>
 
-  <!-- ================= ヘッダー（喫茶店の看板風） ================= -->
-  <header class="site-header">
-    <div class="header-inner">
-      <h1 class="site-title">
-        <span class="title-deco">☕</span>
-        純喫茶巡りログ
-        <span class="title-deco">☕</span>
-      </h1>
-      <p class="site-subtitle">— 懐かしの一杯と一皿を、地図に残す —</p>
-    </div>
-    <!-- データの書き出し/読み込み（ブラウザ保存のためバックアップ用） -->
-    <div class="header-actions">
-      <button id="btn-export" class="btn btn-ghost" title="記録をJSONファイルに書き出します">記録を書き出す</button>
-      <label class="btn btn-ghost" title="書き出したJSONファイルを読み込みます">
-        記録を読み込む
-        <input type="file" id="input-import" accept="application/json" hidden />
-      </label>
-    </div>
-  </header>
+  <!-- ================= 会員認証（ログイン/登録） ================= -->
+  <div id="auth-overlay" class="auth-overlay" hidden>
+    <div class="auth-card">
+      <h1 class="auth-title"><span class="title-deco">☕</span> 純喫茶巡りログ <span class="title-deco">☕</span></h1>
+      <p class="auth-subtitle">— 懐かしの一杯と一皿を、地図に残す —</p>
 
-  <!-- ================= メインレイアウト =================
-       PC : 左サイドバー（検索・一覧） + 右に大きな地図
-       スマホ : 上に地図、下に一覧（モバイルファースト） -->
-  <main class="app">
-
-    <!-- ---------- サイドバー ---------- -->
-    <aside class="sidebar">
-
-      <!-- 店名・住所検索（OpenStreetMapの無料ジオコーディング Nominatim を使用） -->
-      <section class="search-box panel">
-        <h2 class="panel-title">お店をさがす</h2>
-        <div class="search-row">
-          <input
-            type="search"
-            id="input-search"
-            placeholder="店名・住所・駅名など"
-            autocomplete="off"
-          />
-          <button id="btn-search" class="btn btn-amber">検索</button>
+      <!-- ---------- ログイン ---------- -->
+      <div id="auth-panel-login" class="auth-panel">
+        <h2 class="auth-panel-title">ログイン</h2>
+        <p id="auth-error-login" class="auth-error" hidden></p>
+        <form id="form-login">
+          <label class="form-label">
+            メールアドレス
+            <input type="email" id="login-email" required autocomplete="email" />
+          </label>
+          <label class="form-label">
+            パスワード
+            <div class="password-row">
+              <input type="password" id="login-password" required autocomplete="current-password" />
+              <button type="button" id="toggle-login-password" class="btn btn-ghost btn-small">👁 表示</button>
+            </div>
+          </label>
+          <button type="submit" id="btn-login" class="btn btn-amber btn-block">ログイン</button>
+        </form>
+        <div class="auth-links">
+          <a href="#" id="link-to-forgot">パスワードを忘れた方はこちら</a>
+          <a href="#" id="link-to-register">はじめての方はこちら（新規登録）</a>
         </div>
-        <ul id="search-results" class="search-results" hidden></ul>
-        <p class="hint">
-          地図を直接タップ（クリック）しても、その場所に記録を追加できます。
-        </p>
-        <button id="btn-locate" class="btn btn-moss btn-block">📍 現在地へ移動</button>
-      </section>
+      </div>
 
-      <!-- 訪問ログ一覧 -->
-      <section class="panel log-panel">
-        <h2 class="panel-title">巡りの記録 <span id="log-count" class="log-count"></span></h2>
-        <ul id="log-list" class="log-list"></ul>
-        <p id="log-empty" class="empty-note">
-          まだ記録がありません。<br />
-          地図をタップするか、お店を検索して<br />最初の一杯を記録しましょう。
-        </p>
-      </section>
-    </aside>
+      <!-- ---------- 新規登録 ---------- -->
+      <div id="auth-panel-register" class="auth-panel" hidden>
+        <h2 class="auth-panel-title">新規登録</h2>
+        <p id="auth-error-register" class="auth-error" hidden></p>
+        <form id="form-register">
+          <label class="form-label">
+            メールアドレス
+            <input type="email" id="register-email" required autocomplete="email" />
+          </label>
+          <label class="form-label">
+            ニックネーム
+            <input type="text" id="register-nickname" required maxlength="20" />
+          </label>
+          <p class="hint">登録すると、ご入力のメールアドレス宛に仮パスワードをお送りします。</p>
+          <button type="submit" id="btn-register" class="btn btn-amber btn-block">登録する</button>
+        </form>
+        <div class="auth-links">
+          <a href="#" id="link-to-login-from-register">ログイン画面へ戻る</a>
+        </div>
+      </div>
 
-    <!-- ---------- 地図 ---------- -->
-    <div id="map" aria-label="喫茶店マップ"></div>
-  </main>
+      <!-- ---------- 登録完了 ---------- -->
+      <div id="auth-panel-register-done" class="auth-panel" hidden>
+        <h2 class="auth-panel-title">登録を受け付けました</h2>
+        <p id="register-done-message" class="auth-message"></p>
+        <button id="btn-register-done-ok" class="btn btn-amber btn-block">ログイン画面へ</button>
+      </div>
 
-  <!-- スマホ用：記録追加の浮きボタン（FAB） -->
-  <button id="btn-fab" class="fab" title="地図の中心に記録を追加">＋ 記録する</button>
+      <!-- ---------- パスワードを忘れた方 ---------- -->
+      <div id="auth-panel-forgot" class="auth-panel" hidden>
+        <h2 class="auth-panel-title">パスワード再発行</h2>
+        <p id="auth-error-forgot" class="auth-error" hidden></p>
+        <form id="form-forgot">
+          <label class="form-label">
+            登録済みのメールアドレス
+            <input type="email" id="forgot-email" required autocomplete="email" />
+          </label>
+          <button type="submit" id="btn-forgot" class="btn btn-amber btn-block">仮パスワードを送信</button>
+        </form>
+        <div class="auth-links">
+          <a href="#" id="link-to-login-from-forgot">ログイン画面へ戻る</a>
+        </div>
+      </div>
 
-  <!-- ================= 記録の追加・編集フォーム（モーダル） ================= -->
-  <div id="modal-overlay" class="modal-overlay" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div class="modal-ticket-edge" aria-hidden="true"></div>
-      <h2 id="modal-title" class="modal-title">ご来店記録票</h2>
+      <!-- ---------- 再発行完了 ---------- -->
+      <div id="auth-panel-forgot-done" class="auth-panel" hidden>
+        <h2 class="auth-panel-title">送信しました</h2>
+        <p id="forgot-done-message" class="auth-message"></p>
+        <button id="btn-forgot-done-ok" class="btn btn-amber btn-block">ログイン画面へ</button>
+      </div>
 
-      <form id="visit-form">
-        <!-- 緯度経度（地図クリック・検索結果から自動入力） -->
-        <input type="hidden" id="field-lat" />
-        <input type="hidden" id="field-lng" />
-        <input type="hidden" id="field-id" />
+      <!-- ---------- 初回ログイン：パスワード変更（必須） ---------- -->
+      <div id="auth-panel-force-change" class="auth-panel" hidden>
+        <h2 class="auth-panel-title">新しいパスワードを設定してください</h2>
+        <p class="hint">仮パスワードでのログインが確認できました。安全のため、ご自身のパスワードに変更してください（8文字以上）。</p>
+        <p id="auth-error-force-change" class="auth-error" hidden></p>
+        <form id="form-force-change">
+          <label class="form-label">
+            新しいパスワード
+            <div class="password-row">
+              <input type="password" id="force-change-password" required minlength="8" autocomplete="new-password" />
+              <button type="button" id="toggle-force-change-password" class="btn btn-ghost btn-small">👁 表示</button>
+            </div>
+          </label>
+          <label class="form-label">
+            新しいパスワード（確認）
+            <div class="password-row">
+              <input type="password" id="force-change-password2" required minlength="8" autocomplete="new-password" />
+              <button type="button" id="toggle-force-change-password2" class="btn btn-ghost btn-small">👁 表示</button>
+            </div>
+          </label>
+          <button type="submit" id="btn-force-change" class="btn btn-amber btn-block">このパスワードに設定する</button>
+        </form>
+      </div>
+    </div>
+  </div>
 
-        <label class="form-label">
-          店名 <span class="required">＊必須</span>
-          <input type="text" id="field-name" required maxlength="60" placeholder="例：純喫茶アメリカン" />
-        </label>
+  <!-- ================= アプリ本体 ================= -->
+  <div id="app-shell" hidden>
 
-        <label class="form-label">
-          訪問日
-          <input type="date" id="field-date" />
-        </label>
+    <!-- ================= ヘッダー（喫茶店の看板風） ================= -->
+    <header class="site-header">
+      <div class="header-inner">
+        <h1 class="site-title">
+          <span class="title-deco">☕</span>
+          純喫茶巡りログ
+          <span class="title-deco">☕</span>
+        </h1>
+        <p class="site-subtitle">— 懐かしの一杯と一皿を、地図に残す —</p>
+      </div>
+      <div class="header-actions">
+        <span class="header-nickname">👤 <span id="header-nickname"></span> さん</span>
+        <button id="btn-open-settings" class="btn btn-ghost" title="設定">⚙ 設定</button>
+      </div>
+    </header>
 
-        <!-- メニュー：定番をチップで選択 ＋ 自由入力 -->
-        <fieldset class="form-label menu-fieldset">
-          <legend>注文したメニュー</legend>
-          <div class="menu-chips" id="menu-chips">
-            <!-- JSで生成 -->
+    <!-- ================= メインレイアウト ================= -->
+    <main class="app">
+
+      <!-- ---------- サイドバー ---------- -->
+      <aside class="sidebar">
+
+        <section class="search-box panel">
+          <h2 class="panel-title">お店をさがす</h2>
+          <div class="search-row">
+            <input
+              type="search"
+              id="input-search"
+              placeholder="店名・住所・駅名など"
+              autocomplete="off"
+            />
+            <button id="btn-search" class="btn btn-amber">検索</button>
           </div>
-          <input type="text" id="field-menu-free" maxlength="60" placeholder="その他（自由に入力）" />
-        </fieldset>
+          <ul id="search-results" class="search-results" hidden></ul>
+          <p class="hint">
+            地図を直接タップ（クリック）しても、その場所に記録を追加できます。
+          </p>
+          <button id="btn-locate" class="btn btn-moss btn-block">📍 現在地へ移動</button>
+        </section>
 
-        <label class="form-label">
-          写真
-          <input type="file" id="field-photo" accept="image/*" />
-        </label>
-        <div id="photo-preview" class="photo-preview" hidden>
-          <img id="photo-preview-img" alt="写真プレビュー" />
-          <button type="button" id="btn-photo-remove" class="btn btn-ghost btn-small">写真を削除</button>
-        </div>
+        <section class="panel log-panel">
+          <h2 class="panel-title">巡りの記録 <span id="log-count" class="log-count"></span></h2>
+          <ul id="log-list" class="log-list"></ul>
+          <p id="log-empty" class="empty-note">
+            まだ記録がありません。<br />
+            地図をタップするか、お店を検索して<br />最初の一杯を記録しましょう。
+          </p>
+        </section>
+      </aside>
 
-        <label class="form-label">
-          一言メモ
-          <textarea id="field-memo" rows="3" maxlength="300" placeholder="クリームソーダのメロン色が最高だった…など"></textarea>
-        </label>
+      <!-- ---------- 地図 ---------- -->
+      <div id="map" aria-label="喫茶店マップ"></div>
+    </main>
 
-        <!-- お店のホームページURL（食べログ・公式サイトなど） -->
-        <label class="form-label">
-          お店のホームページ
-          <input
-            type="url"
-            id="field-url"
-            placeholder="https://tabelog.com/..."
-            maxlength="500"
-          />
-          <span class="field-hint">食べログ・公式サイトなどのURLを貼り付け</span>
-        </label>
+    <!-- スマホ用：記録追加の浮きボタン（FAB） -->
+    <button id="btn-fab" class="fab" title="地図の中心に記録を追加">＋ 記録する</button>
 
-        <p class="coords-note" id="coords-note"></p>
+    <!-- ================= 記録の追加・編集フォーム（モーダル） ================= -->
+    <div id="modal-overlay" class="modal-overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-ticket-edge" aria-hidden="true"></div>
+        <h2 id="modal-title" class="modal-title">ご来店記録票</h2>
+
+        <form id="visit-form">
+          <input type="hidden" id="field-lat" />
+          <input type="hidden" id="field-lng" />
+          <input type="hidden" id="field-id" />
+
+          <label class="form-label">
+            店名 <span class="required">＊必須</span>
+            <input type="text" id="field-name" required maxlength="60" placeholder="例：純喫茶アメリカン" />
+          </label>
+
+          <label class="form-label">
+            訪問日
+            <input type="date" id="field-date" />
+          </label>
+
+          <fieldset class="form-label menu-fieldset">
+            <legend>注文したメニュー</legend>
+            <div class="menu-chips" id="menu-chips"></div>
+            <input type="text" id="field-menu-free" maxlength="60" placeholder="その他（自由に入力）" />
+          </fieldset>
+
+          <label class="form-label">
+            写真
+            <input type="file" id="field-photo" accept="image/*" />
+          </label>
+          <div id="photo-preview" class="photo-preview" hidden>
+            <img id="photo-preview-img" alt="写真プレビュー" />
+            <button type="button" id="btn-photo-remove" class="btn btn-ghost btn-small">写真を削除</button>
+          </div>
+
+          <label class="form-label">
+            一言メモ
+            <textarea id="field-memo" rows="3" maxlength="300" placeholder="クリームソーダのメロン色が最高だった…など"></textarea>
+          </label>
+          <button type="button" id="btn-ai-memo" class="btn btn-ghost btn-small btn-ai">✨ AIに一言おまかせ</button>
+
+          <label class="form-label">
+            お店のホームページ
+            <input
+              type="url"
+              id="field-url"
+              placeholder="https://tabelog.com/..."
+              maxlength="500"
+            />
+            <span class="field-hint">食べログ・公式サイトなどのURLを貼り付け</span>
+          </label>
+
+          <p class="coords-note" id="coords-note"></p>
+
+          <div class="modal-actions">
+            <button type="button" id="btn-cancel" class="btn btn-ghost">やめる</button>
+            <button type="submit" class="btn btn-amber">この記録を保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================= 設定パネル ================= -->
+    <div id="settings-overlay" class="modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-ticket-edge" aria-hidden="true"></div>
+        <h2 class="modal-title">設定</h2>
+
+        <form id="form-settings-nickname">
+          <label class="form-label">
+            ニックネーム
+            <input type="text" id="settings-nickname" required maxlength="20" />
+          </label>
+          <button type="submit" class="btn btn-moss btn-block">ニックネームを変更</button>
+        </form>
+
+        <hr class="settings-divider" />
+
+        <form id="form-settings-password">
+          <label class="form-label">
+            新しいパスワード
+            <div class="password-row">
+              <input type="password" id="settings-new-password" required minlength="8" autocomplete="new-password" />
+              <button type="button" id="toggle-settings-password" class="btn btn-ghost btn-small">👁 表示</button>
+            </div>
+          </label>
+          <label class="form-label">
+            新しいパスワード（確認）
+            <div class="password-row">
+              <input type="password" id="settings-new-password2" required minlength="8" autocomplete="new-password" />
+              <button type="button" id="toggle-settings-password2" class="btn btn-ghost btn-small">👁 表示</button>
+            </div>
+          </label>
+          <button type="submit" class="btn btn-moss btn-block">パスワードを変更</button>
+        </form>
+
+        <hr class="settings-divider" />
+
+        <button id="btn-logout" class="btn btn-ghost btn-block">ログアウト</button>
+        <button id="btn-withdraw" class="btn btn-ghost btn-block btn-danger-text">退会する</button>
 
         <div class="modal-actions">
-          <button type="button" id="btn-cancel" class="btn btn-ghost">やめる</button>
-          <button type="submit" class="btn btn-amber">この記録を保存</button>
+          <button type="button" id="btn-close-settings" class="btn btn-ghost btn-block">閉じる</button>
         </div>
-      </form>
+      </div>
     </div>
   </div>
 
@@ -168,6 +312,7 @@
   <div id="toast" class="toast" hidden></div>
 
   <!-- ===== アプリのロジック ===== -->
-  <script src="script.js"></script>
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
