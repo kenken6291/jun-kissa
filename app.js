@@ -505,9 +505,20 @@ window.initApp = async function initApp() {
       map.fitBounds(group.getBounds().pad(0.3));
     }
   } catch (err) {
-    // セッション切れなどでlistVisitsが失敗した場合はログアウト扱いにする
+    // 認証エラー（セッション切れ等）の場合は auth.js の apiCall が既に
+    // ログイン画面への切り替えを済ませているので、ここでは何もしない
     console.error(err);
-    clearSession();
-    location.reload();
+  }
+};
+
+/* セッション切れから再ログインした直後に呼ばれる。
+   地図やメニューチップは既に構築済みなので作り直さず、
+   非表示の間ずれた地図サイズの補正と記録一覧の再取得だけ行う。 */
+window.resumeApp = async function resumeApp() {
+  if (map) map.invalidateSize();
+  try {
+    await reloadAll();
+  } catch (err) {
+    console.error(err);
   }
 };

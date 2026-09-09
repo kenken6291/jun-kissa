@@ -31,6 +31,16 @@ var VISIT_HEADERS  = ['id', 'memberId', 'name', 'date', 'menus', 'memo', 'url', 
 var SESSION_TTL_SEC = 21600; // 6時間（CacheServiceの上限）
 var LOCK_THRESHOLD = 5;      // 何回失敗でロックするか
 var LOCK_MINUTES = 15;       // ロック時間（分）
+var FORGOT_PASSWORD_INTERVAL_SEC = 300; // パスワード再発行：同一メールアドレスへの間隔（秒）
+
+/* 指定キーが直近interval秒以内に使われていなければtrueを返し使用済みにする。
+   使われていれば（＝制限時間内）falseを返す。MailApp等の連打防止に使う。 */
+function checkAndSetRateLimit_(key, intervalSec) {
+  var cache = CacheService.getScriptCache();
+  if (cache.get(key)) return false;
+  cache.put(key, '1', intervalSec);
+  return true;
+}
 
 /* =========================================================
    2. 共通ユーティリティ
@@ -219,6 +229,15 @@ function handleChangePassword_(body) {
 
 function handleForgotPassword_(body) {
   var email = String(body.email || '').trim().toLowerCase();
+  if (!isValidEmail_(email)) return ng_('正しいメールアドレスを入力してください');
+
+  // レート制限：同一メールアドレスへの再発行リクエストは一定時間に1回まで。
+  // 存在チェックより前に判定することで、メールアドレスの存在有無が
+  // レスポンスの違いから漏れないようにする。
+  if (!checkAndSetRateLimit_('pwreset_' + email, FORGOT_PASSWORD_INTERVAL_SEC)) {
+    return ng_('パスワード再発行のリクエストは' + (FORGOT_PASSWORD_INTERVAL_SEC / 60) + '分に1回までです。少し時間をおいて再度お試しください');
+  }
+
   var found = findMemberRow_(email);
   // メールアドレスの存在有無を外部から判別できないよう、常に同じメッセージを返す
   if (!found) {

@@ -13,6 +13,10 @@ const API_BASE_URL = "https://script.google.com/macros/s/AKfycbxTguHL6mPn5FaD1qv
 const LS_TOKEN = "jkl_token";
 const LS_NICKNAME = "jkl_nickname";
 
+/* ---------- セッション切れの検知フラグ ----------
+   trueの間は「再ログイン後にアプリ画面へそのまま復帰する」モード。 */
+let resumingSession = false;
+
 /* ---------- API共通呼び出し ----------
    text/plain で送ることでプリフライト（CORS）を回避する、
    いつものGASアプリの通信パターン。 */
@@ -24,8 +28,27 @@ async function apiCall(action, payload) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error || "通信に失敗しました");
+  if (!data.ok) {
+    // セッション切れ（token失効）を検知したら、入力中の内容を保ったまま
+    // ログイン画面へ戻す（loginアクション自体はここを通らないので対象外）
+    if (data.error === "ログインが必要です" && action !== "login") {
+      handleSessionExpired();
+    }
+    throw new Error(data.error || "通信に失敗しました");
+  }
   return data;
+}
+
+/* セッション切れ時：アプリ画面はそのまま裏に残し（入力中の記録フォームなどを
+   保持するため）、ログイン画面だけを前面に出す。二重発火は防止する。 */
+function handleSessionExpired() {
+  if (resumingSession) return;
+  resumingSession = true;
+  clearSession();
+  document.getElementById("app-shell").hidden = true;
+  document.getElementById("auth-overlay").hidden = false;
+  showAuthPanel("login");
+  showAuthError("login", "セッションが切れました。もう一度ログインしてください（入力中の内容は保持されています）");
 }
 
 function getToken() {
@@ -98,6 +121,15 @@ document.getElementById("form-login").addEventListener("submit", async (e) => {
 
     if (data.member.requiresPasswordChange) {
       showAuthPanel("force-change");
+    } else if (resumingSession) {
+      // セッション切れからの再ログイン：ページを作り直さず、
+      // 裏に残っていたアプリ画面（記録フォームの入力内容含む）へそのまま戻す
+      resumingSession = false;
+      document.getElementById("header-nickname").textContent = data.member.nickname;
+      document.getElementById("auth-overlay").hidden = true;
+      document.getElementById("app-shell").hidden = false;
+      if (typeof window.resumeApp === "function") window.resumeApp();
+      showToast("再ログインしました");
     } else {
       location.reload();
     }
