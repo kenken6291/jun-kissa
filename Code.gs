@@ -1,5 +1,5 @@
 /* =========================================================
-   純喫茶巡りログ - Code.gs（GASバックエンド）
+   純喫茶・レストラン巡りログ - Code.gs（GASバックエンド）
 
    構成：
      1. 設定・定数
@@ -147,9 +147,9 @@ function handleRegister_(body) {
   try {
     MailApp.sendEmail({
       to: email,
-      subject: '【純喫茶巡りログ】仮パスワードのお知らせ',
+      subject: '【純喫茶・レストラン巡りログ】仮パスワードのお知らせ',
       body: nickname + ' 様\n\n' +
-        '純喫茶巡りログにご登録いただきありがとうございます。\n' +
+        '純喫茶・レストラン巡りログにご登録いただきありがとうございます。\n' +
         '以下の仮パスワードでログインし、初回ログイン時に新しいパスワードを設定してください。\n\n' +
         '仮パスワード：' + tempPassword + '\n\n' +
         '※このメールに心当たりがない場合は破棄してください。'
@@ -236,7 +236,7 @@ function handleForgotPassword_(body) {
   try {
     MailApp.sendEmail({
       to: email,
-      subject: '【純喫茶巡りログ】仮パスワード再発行のお知らせ',
+      subject: '【純喫茶・レストラン巡りログ】仮パスワード再発行のお知らせ',
       body: found.row.nickname + ' 様\n\n' +
         'パスワード再発行のご依頼を受け付けました。\n' +
         '以下の仮パスワードでログインし、新しいパスワードを設定してください。\n\n' +
@@ -464,10 +464,10 @@ function handleGenerateComment_(body) {
   var memo = String(body.memo || '').trim();
 
   var prompt =
-    '純喫茶「' + name + '」を訪れた記録を書いています。' +
+    '喫茶店またはレストラン「' + name + '」を訪れた記録を書いています。' +
     (menus ? '注文したメニューは「' + menus + '」です。' : '') +
     (memo ? 'メモの下書きは「' + memo + '」です。これを踏まえて、' : '') +
-    'お店の雰囲気や一杯の余韻が伝わるような、レトロで詩的な一言メモを日本語で1文だけ、40文字以内で提案してください。' +
+    'お店の雰囲気や食事・一杯の余韻が伝わるような、味わい深く詩的な一言メモを日本語で1文だけ、40文字以内で提案してください。' +
     '前置きや記号、鍵括弧は付けず、本文のみを返してください。';
 
   var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
@@ -499,7 +499,7 @@ function handleGenerateComment_(body) {
    8. エントリーポイント
    ========================================================= */
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, message: '純喫茶巡りログ API' }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, message: '純喫茶・レストラン巡りログ API' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
