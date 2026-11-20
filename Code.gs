@@ -16,6 +16,14 @@
      - DRIVE_FOLDER_ID … 写真保存先のGoogleドライブフォルダID（未設定ならマイドライブ直下）
      - GEMINI_API_KEY  … Gemini APIキー
      - PEPPER          … パスワードハッシュ化用の固定文字列（任意の長い文字列でOK）
+     - GEMINI_MODEL    … （任意）既定のGeminiモデル名。例: gemini-4-hydrogen
+                         未設定なら汎用の最新モデル（FALLBACK_GEMINI_MODELS）を使用
+
+   Geminiモデルの決定順：
+     1. 画面の設定「AIモデル」で選ばれたモデル
+     2. スクリプトのプロパティ GEMINI_MODEL
+     3. 汎用の最新モデル FALLBACK_GEMINI_MODELS を先頭から順に試す
+     ※ 選んだモデルが使えない（廃止・名前違い）時は 3 へ自動で切り替える
 
    デプロイ：
      「デプロイ」→「新しいデプロイ」→ 種類「ウェブアプリ」
@@ -32,6 +40,15 @@ var SESSION_TTL_SEC = 21600; // 6時間（CacheServiceの上限）
 var LOCK_THRESHOLD = 5;      // 何回失敗でロックするか
 var LOCK_MINUTES = 15;       // ロック時間（分）
 var FORGOT_PASSWORD_INTERVAL_SEC = 300; // パスワード再発行：同一メールアドレスへの間隔（秒）
+
+/* Geminiモデル関連
+   gemini-flash-latest : Googleが常に最新の汎用モデルへ自動で差し替えるエイリアス
+   gemini-4-hydrogen   : 2026年11月時点の汎用最新モデル（日々の暮らしをサポート）
+   gemini-3.8-flash    : 最終的な保険 */
+var FALLBACK_GEMINI_MODELS = ['gemini-flash-latest', 'gemini-4-hydrogen', 'gemini-3.8-flash'];
+var GEMINI_MODEL_PATTERN = /^gemini-[a-z0-9][a-z0-9.\-]{0,60}$/;
+var GEMINI_RETRY_CODES = [429, 500, 503];
+var GEMINI_MAX_ATTEMPTS = 3;
 
 /* 指定キーが直近interval秒以内に使われていなければtrueを返し使用済みにする。
    使われていれば（＝制限時間内）falseを返す。MailApp等の連打防止に使う。 */
@@ -489,29 +506,103 @@ function handleGenerateComment_(body) {
     'お店の雰囲気や食事・一杯の余韻が伝わるような、味わい深く詩的な一言メモを日本語で1文だけ、40文字以内で提案してください。' +
     '前置きや記号、鍵括弧は付けず、本文のみを返してください。';
 
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
-  var payload = { contents: [{ parts: [{ text: prompt }] }] };
+  var requestBody = { contents: [{ parts: [{ text: prompt }] }] };
+  var requestedModel = resolveGeminiModel_(body.model);
+  var candidates = [requestedModel].concat(FALLBACK_GEMINI_MODELS.filter(function (m) { return m !== requestedModel; }));
 
-  var res = UrlFetchApp.fetch(url, {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  });
+  var usedModel = requestedModel;
+  var res = null;
+  for (var i = 0; i < candidates.length; i++) {
+    usedModel = candidates[i];
+    res = callGeminiModel_(usedModel, apiKey, requestBody);
+    if (!isModelNotFound_(res.code, res.text)) break;
+    console.warn('Geminiモデル「' + usedModel + '」に該当がないため次の候補に切り替えます');
+  }
+
+  if (res.code !== 200) {
+    console.error('Gemini APIエラー (HTTP ' + res.code + ', ' + usedModel + '): ' + String(res.text).substring(0, 300));
+    if (GEMINI_RETRY_CODES.indexOf(res.code) !== -1) {
+      return ng_('AIが混み合っています。少し時間をおいてから再度お試しください');
+    }
+    return ng_('AIコメントの生成に失敗しました（HTTP ' + res.code + '）');
+  }
 
   var json;
   try {
-    json = JSON.parse(res.getContentText());
+    json = JSON.parse(res.text);
   } catch (e) {
     return ng_('Gemini APIの応答を解析できませんでした');
   }
 
-  var text = json.candidates && json.candidates[0] && json.candidates[0].content &&
-    json.candidates[0].content.parts && json.candidates[0].content.parts[0] &&
-    json.candidates[0].content.parts[0].text;
+  var parts = json.candidates && json.candidates[0] && json.candidates[0].content &&
+    json.candidates[0].content.parts;
+  var text = '';
+  if (Array.isArray(parts)) {
+    // 思考（thought）パートを除いた本文だけをつなぐ
+    text = parts.filter(function (p) { return p && p.text && !p.thought; })
+      .map(function (p) { return p.text; }).join('');
+  }
 
   if (!text) return ng_('AIコメントの生成に失敗しました。しばらくしてから再度お試しください');
-  return ok_({ comment: text.trim() });
+  return ok_({
+    comment: text.trim(),
+    model: usedModel,
+    requestedModel: requestedModel,
+    fallback: usedModel !== requestedModel
+  });
+}
+
+/* 使用するGeminiモデル名を決定する */
+function resolveGeminiModel_(requested) {
+  var req = String(requested || '').trim().toLowerCase();
+  if (req && GEMINI_MODEL_PATTERN.test(req)) return req;
+
+  var prop = String(PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') || '').trim().toLowerCase();
+  if (prop && GEMINI_MODEL_PATTERN.test(prop)) return prop;
+
+  return FALLBACK_GEMINI_MODELS[0];
+}
+
+/* Gemini APIを1モデルに対して呼び出す。混雑(429/500/503)時は待ち時間を伸ばしながら再試行する */
+function callGeminiModel_(model, apiKey, requestBody) {
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'x-goog-api-key': apiKey },
+    payload: JSON.stringify(requestBody),
+    muteHttpExceptions: true
+  };
+
+  var code = 0;
+  var text = '';
+  for (var attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    var response = UrlFetchApp.fetch(url, options);
+    code = response.getResponseCode();
+    text = response.getContentText();
+    if (code === 200) break;
+    if (GEMINI_RETRY_CODES.indexOf(code) === -1 || attempt === GEMINI_MAX_ATTEMPTS) break;
+    Utilities.sleep(2000 * attempt);
+  }
+  return { code: code, text: text };
+}
+
+/* モデルが存在しない（廃止・名前違い）ことを示す応答かどうか */
+function isModelNotFound_(code, text) {
+  if (code === 404) return true;
+  if (code === 400 && /model|NOT_FOUND|not found|not supported/i.test(text)) {
+    return /not found|is not supported|NOT_FOUND|unknown model|invalid model/i.test(text);
+  }
+  return false;
+}
+
+/* エディタから手動実行して接続確認する用 */
+function testGeminiConnection() {
+  var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  Logger.log(apiKey ? 'GEMINI_API_KEY は設定されています' : 'GEMINI_API_KEY が未設定です');
+  Logger.log('既定モデル: ' + resolveGeminiModel_(''));
+  var res = callGeminiModel_(resolveGeminiModel_(''), apiKey, { contents: [{ parts: [{ text: 'こんにちは' }] }] });
+  Logger.log('HTTP ' + res.code + ': ' + String(res.text).substring(0, 300));
 }
 
 /* =========================================================

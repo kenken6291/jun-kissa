@@ -332,6 +332,7 @@ input[type="email"],
 input[type="password"],
 input[type="date"],
 input[type="url"],
+select,
 textarea {
   font-family: var(--font-body);
   font-size: 16px; /* iOSの自動ズーム防止 */
@@ -344,6 +345,7 @@ textarea {
 }
 
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible {
   outline: 3px solid var(--amber);
   outline-offset: 1px;
@@ -665,6 +667,7 @@ body.modal-open .app {
 }
 
 .form-label input,
+.form-label select,
 .form-label textarea {
   margin-top: 4px;
   font-weight: 400;

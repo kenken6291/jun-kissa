@@ -387,6 +387,47 @@ document.getElementById("btn-photo-remove").addEventListener("click", () => {
 /* =========================================================
    6. Geminiによる一言コメント生成
    ========================================================= */
+// 設定画面の「AIモデル」選択肢（value がAPIのモデルID）
+// 空文字 '' = 自動（汎用の最新）。該当がないモデルはGAS側で自動切替される
+const GEMINI_MODEL_OPTIONS = [
+  { value: "", label: "自動モード（汎用の最新）" },
+  { value: "gemini-4-hydrogen", label: "4 Hydrogen（日々の暮らしをサポート）" },
+  { value: "gemini-4-neon", label: "4 Neon（Deeper analysis）" },
+  { value: "gemini-4-carbon", label: "4 Carbon（Code & complex work）" },
+  { value: "gemini-4-argon", label: "4 Argon" },
+  { value: "gemini-3.8-flash", label: "3.8 Flash" },
+  { value: "gemini-3.5-flash", label: "3.5 Flash" },
+];
+const LS_GEMINI_MODEL = "junkissa_gemini_model";
+let geminiModel = "";
+
+function modelLabel(value) {
+  const opt = GEMINI_MODEL_OPTIONS.find((o) => o.value === value);
+  return opt ? opt.label : value;
+}
+
+(function setupModelPicker() {
+  try {
+    const saved = localStorage.getItem(LS_GEMINI_MODEL);
+    if (saved !== null && GEMINI_MODEL_OPTIONS.some((o) => o.value === saved)) geminiModel = saved;
+  } catch (e) { /* ignore */ }
+
+  const sel = document.getElementById("settings-model");
+  if (!sel) return;
+  GEMINI_MODEL_OPTIONS.forEach((o) => {
+    const op = document.createElement("option");
+    op.value = o.value;
+    op.textContent = o.label;
+    sel.appendChild(op);
+  });
+  sel.value = geminiModel;
+  sel.addEventListener("change", () => {
+    geminiModel = sel.value;
+    try { localStorage.setItem(LS_GEMINI_MODEL, geminiModel); } catch (e) { /* ignore */ }
+    showToast("AIモデルを「" + modelLabel(geminiModel) + "」にしました");
+  });
+})();
+
 document.getElementById("btn-ai-memo").addEventListener("click", async () => {
   const btn = document.getElementById("btn-ai-memo");
   const name = document.getElementById("field-name").value.trim();
@@ -404,8 +445,11 @@ document.getElementById("btn-ai-memo").addEventListener("click", async () => {
   const originalLabel = btn.textContent;
   btn.textContent = "AIが考え中…";
   try {
-    const data = await apiCall("generateComment", { name, menus, memo });
+    const data = await apiCall("generateComment", { name, menus, memo, model: geminiModel });
     document.getElementById("field-memo").value = data.comment;
+    if (data.fallback && geminiModel) {
+      showToast("「" + modelLabel(geminiModel) + "」が使えなかったため " + data.model + " で作成しました");
+    }
   } catch (err) {
     showToast(err.message || "AIコメントの生成に失敗しました");
   } finally {
